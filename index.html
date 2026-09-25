@@ -113,11 +113,11 @@ html,body{margin:0;height:100%;background:#05040d;color:var(--fg);font-family:In
 <button id="settingsBtn" title="Settings">⚙️</button>
 <button id="snakeBtn">🐍 Snake</button>
 
-<div class="corner" id="weatherBox" title="Click to change weather location" style="cursor:pointer">
+<div class="corner" id="weatherBox">
   <div class="wicon" id="wicon">📍</div>
   <div>
-    <div class="wtemp" id="wtemp">Loading…</div>
-    <div class="wloc" id="wloc">Omaha, NE</div>
+    <div class="wtemp" id="wtemp">Locating…</div>
+    <div class="wloc" id="wloc">Allow location access</div>
   </div>
 </div>
 
@@ -148,8 +148,8 @@ html,body{margin:0;height:100%;background:#05040d;color:var(--fg);font-family:In
     <button class="close" onclick="closeSettings()">Close ✕</button>
     <h3 style="margin-top:0;">Settings</h3>
     <label class="setLabel">Gemini API Key (for AI Overview)</label>
-    <input id="geminiKey" class="setInput" type="text" placeholder="Paste a Gemini API key">
-    <div class="hintSmall" style="margin-bottom:12px;">The key is intentionally stored in this HTML so the downloaded file can run by itself. Anyone who gets the file can see/use the key.</div>
+    <input id="geminiKey" class="setInput" type="text">
+    <div class="hintSmall">Pre-filled with the key you gave me. Rotate it at ai.google.dev if you ever share this file.</div>
     <label class="setLabel" style="margin-top:12px;">Unsplash Access Key (for real images, optional)</label>
     <input id="unsplashKey" class="setInput" type="text" placeholder="Paste your free Unsplash API key">
     <div class="hintSmall">Get a free key at unsplash.com/developers → New Application.</div>
@@ -189,7 +189,7 @@ html,body{margin:0;height:100%;background:#05040d;color:var(--fg);font-family:In
 
 <script>
 /* ================= default key (as provided) & settings ================= */
-const DEFAULT_GEMINI_KEY = "AQ.Ab8RN6KCnetfMyBgCEMB6ioFcJJGWtNZfoYbBLOubiL4AwyhFg";
+const DEFAULT_GEMINI_KEY = "AQ.Ab8RN6I5KfujKvCRJMndCqUEdIx2S1iErZw2A-RVac50_TGR_Q";
 function loadSettings(){
   return {
     unsplash: localStorage.getItem('unsplashKey') || '',
@@ -398,43 +398,36 @@ const wmoText={0:["Clear sky","☀️"],1:["Mainly clear","🌤️"],2:["Partly 
 61:["Light rain","🌧️"],63:["Rain","🌧️"],65:["Heavy rain","🌧️"],71:["Light snow","🌨️"],73:["Snow","🌨️"],
 75:["Heavy snow","❄️"],80:["Rain showers","🌧️"],81:["Rain showers","🌧️"],82:["Violent showers","⛈️"],
 95:["Thunderstorm","⛈️"],96:["Thunderstorm, hail","⛈️"],99:["Thunderstorm, hail","⛈️"]};
-async function loadWeather(cityQuery){
+async function loadWeather(){
   const tempEl=document.getElementById("wtemp");
   const locEl=document.getElementById("wloc");
   const iconEl=document.getElementById("wicon");
-  const savedCity=localStorage.getItem("weatherCity") || "Omaha, NE";
-  const city=cityQuery || savedCity;
   tempEl.textContent="Loading…";
-  locEl.textContent=city;
+  locEl.textContent="Finding your area…";
   try{
-    // Uses Open-Meteo's public geocoding + weather APIs, so this also works
-    // when this HTML is opened directly as a downloaded file (file://).
-    const geoRes=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`,{cache:"no-store"});
-    if(!geoRes.ok) throw new Error("Location lookup failed");
-    const geo=await geoRes.json();
-    const place=geo.results?.[0];
-    if(!place) throw new Error("City not found");
-    const wxRes=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`,{cache:"no-store"});
+    // Use approximate IP-based location so the browser never asks for GPS permission.
+    const locRes=await fetch("https://ipapi.co/json/",{cache:"no-store"});
+    if(!locRes.ok) throw new Error("Location lookup failed");
+    const loc=await locRes.json();
+    const latitude=Number(loc.latitude), longitude=Number(loc.longitude);
+    if(!Number.isFinite(latitude)||!Number.isFinite(longitude)) throw new Error("Invalid location");
+
+    const wxRes=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`,{cache:"no-store"});
     if(!wxRes.ok) throw new Error("Weather lookup failed");
     const wx=await wxRes.json();
     const code=wx.current?.weather_code;
     const [condition,icon]=wmoText[code]||["Weather","🌡️"];
     iconEl.textContent=icon;
     tempEl.textContent=Math.round(wx.current.temperature_2m)+"°F";
-    const region=place.admin1?`, ${place.admin1}`:"";
-    locEl.textContent=`${condition} · ${place.name}${region}`;
-    localStorage.setItem("weatherCity",city);
+    const city=loc.city||loc.region||"Your area";
+    const region=loc.region_code?`, ${loc.region_code}`:"";
+    locEl.textContent=`${condition} · ${city}${region}`;
   }catch(e){
-    iconEl.textContent="⚠️";
+    iconEl.textContent="📍";
     tempEl.textContent="Unavailable";
-    locEl.textContent="Click to choose a city";
+    locEl.textContent="Weather location unavailable";
   }
 }
-document.getElementById("weatherBox").addEventListener("click",()=>{
-  const current=localStorage.getItem("weatherCity") || "Omaha, NE";
-  const city=prompt("Enter a city for weather (example: Omaha, NE):",current);
-  if(city && city.trim()) loadWeather(city.trim());
-});
 loadWeather();
 
 /* ================= search ================= */
@@ -499,26 +492,23 @@ async function runAI(q){
   const box=document.getElementById("aiText");
   const key = loadSettings().gemini;
   if(!key){ box.textContent="Add a Gemini API key in Settings (⚙️) to enable AI overviews."; return; }
-  box.textContent="Thinking…";
+  box.textContent="Thinking...";
   try{
     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent", {
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-goog-api-key":key},
-      body:JSON.stringify({
-        contents:[{parts:[{text:`Give a concise, factual overview (4-6 sentences) answering or summarizing this search query for a search engine results page: "${q}". No preamble, no markdown headers.`}]}],
-        generationConfig:{temperature:0.2,maxOutputTokens:350}
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": key
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `Give a concise, factual overview (4-6 sentences) answering or summarizing this search query for a search engine results page: "${q}". No preamble, no markdown headers.` }] }]
       })
     });
     const data = await res.json();
-    if(!res.ok){
-      box.textContent="AI overview error: "+(data?.error?.message || ("HTTP "+res.status));
-      return;
-    }
-    const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
+    if(data.error){ box.textContent="AI overview error: "+(data.error.message || "Gemini API error"); return; }
+    const text = data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
     box.textContent = text || "No overview available.";
-  }catch(e){
-    box.textContent="Couldn't connect to Gemini. Check the API key in Settings and try again.";
-  }
+  }catch(e){ box.textContent="Couldn't load an AI overview right now."; }
 }
 function doSearch(){
   const q=document.getElementById("q").value.trim();
