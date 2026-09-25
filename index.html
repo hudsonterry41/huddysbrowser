@@ -148,8 +148,8 @@ html,body{margin:0;height:100%;background:#05040d;color:var(--fg);font-family:In
     <button class="close" onclick="closeSettings()">Close ✕</button>
     <h3 style="margin-top:0;">Settings</h3>
     <label class="setLabel">Gemini API Key (for AI Overview)</label>
-    <input id="geminiKey" class="setInput" type="text">
-    <div class="hintSmall">Pre-filled with the key you gave me. Rotate it at ai.google.dev if you ever share this file.</div>
+    <input id="geminiKey" class="setInput" type="text" placeholder="Paste a Gemini API key">
+    <div class="hintSmall" style="margin-bottom:12px;">The key is intentionally stored in this HTML so the downloaded file can run by itself. Anyone who gets the file can see/use the key.</div>
     <label class="setLabel" style="margin-top:12px;">Unsplash Access Key (for real images, optional)</label>
     <input id="unsplashKey" class="setInput" type="text" placeholder="Paste your free Unsplash API key">
     <div class="hintSmall">Get a free key at unsplash.com/developers → New Application.</div>
@@ -499,23 +499,26 @@ async function runAI(q){
   const box=document.getElementById("aiText");
   const key = loadSettings().gemini;
   if(!key){ box.textContent="Add a Gemini API key in Settings (⚙️) to enable AI overviews."; return; }
-  box.textContent="Thinking...";
+  box.textContent="Thinking…";
   try{
     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": key
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `Give a concise, factual overview (4-6 sentences) answering or summarizing this search query for a search engine results page: "${q}". No preamble, no markdown headers.` }] }]
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-goog-api-key":key},
+      body:JSON.stringify({
+        contents:[{parts:[{text:`Give a concise, factual overview (4-6 sentences) answering or summarizing this search query for a search engine results page: "${q}". No preamble, no markdown headers.`}]}],
+        generationConfig:{temperature:0.2,maxOutputTokens:350}
       })
     });
     const data = await res.json();
-    if(data.error){ box.textContent="AI overview error: "+(data.error.message || "Gemini API error"); return; }
-    const text = data.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
+    if(!res.ok){
+      box.textContent="AI overview error: "+(data?.error?.message || ("HTTP "+res.status));
+      return;
+    }
+    const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
     box.textContent = text || "No overview available.";
-  }catch(e){ box.textContent="Couldn't load an AI overview right now."; }
+  }catch(e){
+    box.textContent="Couldn't connect to Gemini. Check the API key in Settings and try again.";
+  }
 }
 function doSearch(){
   const q=document.getElementById("q").value.trim();
