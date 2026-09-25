@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Huddy's Browser</title>
+<style>
+:root{
+  --fg:#eef2ff;--muted:#a6b0d6;--border:rgba(255,255,255,.15);--accent:#00e5ff;--accent2:#ff2ec4;
+  --card:rgba(15,10,35,.6);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#05040d;color:var(--fg);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden;}
+
+/* ---- animated sci-fi city background ---- */
+.scene{position:fixed;inset:0;z-index:0;overflow:hidden;background:linear-gradient(180deg,#060314 0%,#180a38 30%,#3b0f5c 60%,#1a0a30 85%,#0a0618 100%);}
+.stars{position:absolute;inset:0;}
+.star{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;opacity:.6;animation:tw 3s ease-in-out infinite;}
+@keyframes tw{0%,100%{opacity:.15}50%{opacity:1}}
+.moon{position:absolute;top:7%;right:12%;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#bfe9ff 60%,#7fd8ff);box-shadow:0 0 70px 25px rgba(120,220,255,.5);}
+.cloud{position:absolute;height:26px;border-radius:20px;background:rgba(255,255,255,.05);filter:blur(2px);animation-name:drift;animation-timing-function:linear;animation-iteration-count:infinite;}
+@keyframes drift{from{transform:translateX(-20%)}to{transform:translateX(120vw)}}
+.buildlayer{position:absolute;bottom:0;left:0;right:0;}
+.building{position:absolute;bottom:0;background:linear-gradient(180deg,#0d0620,#1c0f38);border-top:2px solid rgba(255,255,255,.08);}
+.building.far{filter:brightness(.55) saturate(.7);}
+.building .win{position:absolute;left:6%;right:6%;background:repeating-linear-gradient(90deg,transparent 0 5px,var(--wc,#00e5ff) 5px 8px,transparent 8px 13px);opacity:.6;animation:flick 4s infinite steps(2);}
+@keyframes flick{0%,88%{opacity:.6}90%,92%{opacity:.12}94%{opacity:.6}}
+.sign{position:absolute;font-size:11px;letter-spacing:2px;font-weight:bold;padding:2px 6px;border:1px solid currentColor;border-radius:3px;animation:glow 2.4s ease-in-out infinite;background:rgba(0,0,0,.2);}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 4px currentColor)}50%{filter:drop-shadow(0 0 14px currentColor)}}
+.streak{position:absolute;bottom:1%;height:2px;width:26%;border-radius:2px;filter:blur(1px);animation-name:streak;animation-timing-function:linear;animation-iteration-count:infinite;}
+@keyframes streak{from{transform:translateX(-40%)}to{transform:translateX(140vw)}}
+.car{position:absolute;height:5px;width:32px;border-radius:3px;filter:drop-shadow(0 0 9px currentColor);animation-name:fly;animation-timing-function:linear;animation-iteration-count:infinite;}
+.car::after{content:"";position:absolute;right:100%;top:1px;width:70px;height:3px;background:linear-gradient(90deg,transparent,currentColor);opacity:.65;}
+@keyframes fly{from{transform:translateX(-140px)}to{transform:translateX(110vw)}}
+.hazeglow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,rgba(255,60,220,.2),transparent 60%);}
+.overlay{position:fixed;inset:0;background:rgba(4,2,15,.4);z-index:1;pointer-events:none;}
+
+/* ---- UI ---- */
+.wrap{position:relative;z-index:2;max-width:920px;margin:0 auto;padding:24px 16px 60px;}
+.logo{font-size:clamp(2.3rem,6vw,4.4rem);text-align:center;margin:18px 0 28px;font-weight:800;letter-spacing:2px;color:#fff;font-family:"Arial Black",Impact,sans-serif;text-shadow:0 0 5px #fff,0 0 12px #00e5ff,0 0 25px #00e5ff,0 0 45px #ff2ec4;animation:neonFlicker 5.5s infinite;position:relative;display:inline-block;left:50%;transform:translateX(-50%)}
+@keyframes neonFlicker{0%,18%,20%,22%,63%,65%,100%{opacity:1;filter:brightness(1.2)}19%,21%,64%{opacity:.72;filter:brightness(.75)}62%{opacity:.9;filter:brightness(1)}}
+.searchbar{display:flex;align-items:center;border:1px solid var(--border);border-radius:24px;padding:10px 18px;max-width:600px;margin:0 auto;gap:10px;background:var(--card);backdrop-filter:blur(8px);}
+.searchbar input{flex:1;border:none;outline:none;background:transparent;color:var(--fg);font-size:1rem;}
+.searchbar input::placeholder{color:var(--muted)}
+.searchbar button{border:none;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#05040d;border-radius:16px;padding:8px 16px;cursor:pointer;font-size:.9rem;font-weight:700;}
+.tabs{display:flex;gap:4px;justify-content:center;margin:22px 0 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.tab{padding:10px 14px;color:var(--muted);cursor:pointer;font-size:.9rem;border-bottom:3px solid transparent;}
+.tab.active{color:var(--accent);border-color:var(--accent);}
+.panel{display:none;}
+.panel.active{display:block;}
+.ai-box{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;}
+.ai-title{font-size:.8rem;color:var(--accent);font-weight:700;margin-bottom:8px;letter-spacing:.5px;}
+.ai-text{font-size:.95rem;line-height:1.5;white-space:pre-wrap;}
+.result{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card);backdrop-filter:blur(6px);border-radius:10px;margin-bottom:10px;}
+.result a{color:var(--accent);text-decoration:none;font-size:1.05rem;font-weight:600;}
+.result .src{color:#7bffb0;font-size:.78rem;}
+.result p{color:var(--muted);font-size:.88rem;margin:4px 0 0;}
+.hint{color:var(--muted);font-size:.8rem;text-align:center;margin-top:28px;}
+.hintSmall{color:var(--muted);font-size:.72rem;margin-top:4px;}
+.loading{color:var(--muted);font-size:.9rem;text-align:center;padding:20px;grid-column:1/-1;}
+.imgGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}
+.imgCard{position:relative;border-radius:10px;overflow:hidden;background:var(--card);border:1px solid var(--border);}
+.imgCard img{width:100%;height:130px;object-fit:cover;display:block;}
+.imgCard .cap{font-size:.72rem;color:var(--muted);padding:6px 8px;}
+.imgCard a{color:inherit;text-decoration:none;}
+
+/* ---- corner widgets ---- */
+.corner{position:fixed;z-index:5;background:var(--card);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px;padding:12px 14px;font-size:.82rem;}
+#quoteBox{top:14px;left:14px;max-width:230px;}
+#quoteBox .qtext{font-style:italic;line-height:1.35;}
+#quoteBox .qauth{color:var(--accent);font-size:.75rem;margin-top:6px;text-align:right;}
+#weatherBox{bottom:14px;left:14px;display:flex;align-items:center;gap:10px;}
+#weatherBox .wicon{font-size:1.8rem;}
+#weatherBox .wtemp{font-size:1.15rem;font-weight:700;}
+#weatherBox .wloc{color:var(--muted);font-size:.72rem;}
+#timerBox{bottom:14px;right:14px;text-align:center;min-width:150px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+#timerBox .tdisplay{font-size:1.5rem;font-weight:700;letter-spacing:1px;margin:4px 0 8px;color:#f2f2f2;}
+#timerBox input{width:50px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#f2f2f2;border-radius:6px;padding:3px;font-size:.8rem;text-align:center;}
+#timerBox .trow{display:flex;gap:6px;justify-content:center;align-items:center;margin-bottom:6px;}
+#timerBox button{border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:5px 9px;font-size:.75rem;cursor:pointer;color:#f2f2f2;font-weight:700;background:rgba(255,255,255,.12);}
+#timerBox button.secondary{background:rgba(255,255,255,.05);}
+#snakeBtn{position:fixed;top:14px;right:14px;z-index:5;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(10px);color:var(--fg);border-radius:14px;padding:10px 16px;font-size:.85rem;cursor:pointer;font-weight:700;}
+#settingsBtn{position:fixed;top:14px;right:110px;z-index:5;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(10px);color:var(--fg);border-radius:14px;padding:10px 12px;font-size:.9rem;cursor:pointer;}
+#snakeModal,#settingsModal{position:fixed;inset:0;z-index:20;background:rgba(2,1,10,.85);display:none;align-items:center;justify-content:center;}
+#snakeModal.open,#settingsModal.open{display:flex;}
+.snakeCard{background:#0d0620;border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center;}
+.snakeCard canvas{background:#05040d;border:1px solid var(--border);border-radius:8px;display:block;margin:10px auto;}
+.snakeCard .close{background:none;border:1px solid var(--border);color:var(--fg);border-radius:8px;padding:4px 10px;cursor:pointer;float:right;}
+.snakeScore{color:var(--accent);font-weight:700;}
+.setLabel{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px;}
+.setInput{width:100%;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--fg);border-radius:6px;padding:8px;font-size:.85rem;}
+@media(max-width:640px){.corner{font-size:.72rem;padding:8px 10px;} #quoteBox{max-width:140px;} #timerBox{min-width:120px;} #settingsBtn{right:100px;}}
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="stars" id="stars"></div>
+  <div class="moon"></div>
+  <div id="clouds"></div>
+  <div class="buildlayer" id="buildingsFar"></div>
+  <div class="buildlayer" id="buildings"></div>
+  <div id="cars"></div>
+  <div id="streaks"></div>
+  <div class="hazeglow"></div>
+</div>
+<div class="overlay"></div>
+
+<div class="corner" id="quoteBox">
+  <div class="qtext" id="qtext"></div>
+  <div class="qauth" id="qauth"></div>
+</div>
+
+<button id="settingsBtn" title="Settings">⚙️</button>
+<button id="snakeBtn">🐍 Snake</button>
+
+<div class="corner" id="weatherBox" title="Click to change weather location" style="cursor:pointer">
+  <div class="wicon" id="wicon">📍</div>
+  <div>
+    <div class="wtemp" id="wtemp">Loading…</div>
+    <div class="wloc" id="wloc">Omaha, NE</div>
+  </div>
+</div>
+
+<div class="corner" id="timerBox">
+  <div class="trow">
+    <input id="tmin" type="number" min="0" value="5" title="minutes"><span>m</span>
+    <input id="tsec" type="number" min="0" max="59" value="0" title="seconds"><span>s</span>
+  </div>
+  <div class="tdisplay" id="tdisplay">05:00</div>
+  <div class="trow">
+    <button onclick="timerStart()">Start</button>
+    <button class="secondary" onclick="timerPause()">Pause</button>
+    <button class="secondary" onclick="timerReset()">Reset</button>
+  </div>
+</div>
+
+<div id="snakeModal">
+  <div class="snakeCard">
+    <button class="close" onclick="closeSnake()">Close ✕</button>
+    <div>Score: <span class="snakeScore" id="snakeScore">0</span></div>
+    <canvas id="snakeCanvas" width="300" height="300"></canvas>
+    <div class="hintSmall">Arrow keys / WASD to move</div>
+  </div>
+</div>
+
+<div id="settingsModal">
+  <div class="snakeCard" style="text-align:left;max-width:380px;">
+    <button class="close" onclick="closeSettings()">Close ✕</button>
+    <h3 style="margin-top:0;">Settings</h3>
+    <div class="hintSmall" style="margin-bottom:12px;">AI Overview is disabled in this downloaded HTML so no private API key is stored inside the file.</div>
+    <label class="setLabel" style="margin-top:12px;">Unsplash Access Key (for real images, optional)</label>
+    <input id="unsplashKey" class="setInput" type="text" placeholder="Paste your free Unsplash API key">
+    <div class="hintSmall">Get a free key at unsplash.com/developers → New Application.</div>
+    <button onclick="saveSettings()" style="margin-top:14px;">Save</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="logo">Huddy's Browser</div>
+  <div class="searchbar">
+    <input id="q" type="text" placeholder="Search the web..." />
+    <button onclick="doSearch()">Search</button>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-t="all">All</div>
+    <div class="tab" data-t="images">Images</div>
+    <div class="tab" data-t="videos">Videos</div>
+    <div class="tab" data-t="shopping">Shopping</div>
+    <div class="tab" data-t="news">News</div>
+  </div>
+
+  <div id="all" class="panel active">
+    <div class="ai-box">
+      <div class="ai-title">✨ AI OVERVIEW</div>
+      <div class="ai-text" id="aiText">Type a search above to get an AI-generated overview.</div>
+    </div>
+    <div id="allResults"></div>
+  </div>
+  <div id="images" class="panel"><div id="imgResults" class="imgGrid"></div></div>
+  <div id="videos" class="panel"><div id="vidResults"></div></div>
+  <div id="shopping" class="panel"><div id="shopResults"></div></div>
+  <div id="news" class="panel"><div id="newsResults"></div></div>
+
+  <div class="hint">Real photos need a free Unsplash key (Settings ⚙️). Links go straight to real sites, not another search engine.</div>
+</div>
+
+<script>
+/* ================= default key (as provided) & settings ================= */
+function loadSettings(){
+  return {
+    unsplash: localStorage.getItem('unsplashKey') || '',
+    gemini: ''
+  };
+}
+function openSettings(){
+  const s = loadSettings();
+  document.getElementById('unsplashKey').value = s.unsplash;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings(){ document.getElementById('settingsModal').classList.remove('open'); }
+function saveSettings(){
+  localStorage.setItem('unsplashKey', document.getElementById('unsplashKey').value.trim());
+  closeSettings();
+}
+document.getElementById('settingsBtn').addEventListener('click', openSettings);
+document.getElementById('snakeBtn').addEventListener('click', () => {
+  document.getElementById('snakeModal').classList.add('open');
+  startSnake();
+});
+
+/* ================= animated sci-fi city background ================= */
+const starsEl=document.getElementById("stars");
+for(let i=0;i<70;i++){
+  const s=document.createElement("div");s.className="star";
+  s.style.left=Math.random()*100+"%";s.style.top=Math.random()*55+"%";
+  s.style.animationDelay=(Math.random()*3)+"s";
+  starsEl.appendChild(s);
+}
+const cloudsEl=document.getElementById("clouds");
+for(let i=0;i<4;i++){
+  const c=document.createElement("div");c.className="cloud";
+  c.style.top=(5+Math.random()*20)+"%";c.style.width=(15+Math.random()*20)+"%";
+  const dur=40+Math.random()*30;
+  c.style.animationDuration=dur+"s";c.style.animationDelay=(-Math.random()*dur)+"s";
+  cloudsEl.appendChild(c);
+}
+const neon=["#00e5ff","#ff2ec4","#7c4dff","#39ff14","#ff9100","#ffe100"];
+function buildSkyline(containerId, isFar){
+  const el=document.getElementById(containerId);
+  let left=0;
+  while(left<102){
+    const w=isFar?(8+Math.random()*10):(6+Math.random()*9);
+    const h=isFar?(15+Math.random()*30):(28+Math.random()*58);
+    const c=neon[Math.floor(Math.random()*neon.length)];
+    const div=document.createElement("div");
+    div.className="building"+(isFar?" far":"");
+    div.style.left=left+"%";div.style.width=w+"%";div.style.height=h+"%";
+    const win=document.createElement("div");
+    win.className="win";win.style.setProperty("--wc",c);
+    win.style.top="8%";win.style.bottom="5%";win.style.animationDelay=(Math.random()*4)+"s";
+    div.appendChild(win);
+    if(!isFar && Math.random()>.5){
+      const sign=document.createElement("div");
+      sign.className="sign";sign.style.color=c;
+      sign.style.top=(6+Math.random()*10)+"%";sign.style.left="8%";
+      sign.textContent=["NEO","市","2099","AKIRA","雨","SYN","RYU","ネオ"][Math.floor(Math.random()*8)];
+      sign.style.animationDelay=(Math.random()*2)+"s";
+      div.appendChild(sign);
+    }
+    el.appendChild(div);
+    left+=w+Math.random()*2;
+  }
+}
+buildSkyline("buildingsFar", true);
+buildSkyline("buildings", false);
+const carsEl=document.getElementById("cars");
+for(let i=0;i<9;i++){
+  const car=document.createElement("div");
+  car.className="car";
+  const c=neon[Math.floor(Math.random()*neon.length)];
+  car.style.background=c;car.style.color=c;
+  car.style.top=(12+Math.random()*48)+"%";
+  const dur=5+Math.random()*9;
+  car.style.animationDuration=dur+"s";
+  car.style.animationDelay=(-Math.random()*dur)+"s";
+  carsEl.appendChild(car);
+}
+const streaksEl=document.getElementById("streaks");
+for(let i=0;i<5;i++){
+  const s=document.createElement("div");s.className="streak";
+  const c=neon[Math.floor(Math.random()*neon.length)];
+  s.style.background=c;s.style.left=(Math.random()*10)+"%";
+  const dur=3+Math.random()*4;
+  s.style.animationDuration=dur+"s";s.style.animationDelay=(-Math.random()*dur)+"s";
+  streaksEl.appendChild(s);
+}
+
+/* ================= quotes widget ================= */
+const quotes=[
+  ["The only way to do great work is to love what you do.","Steve Jobs"],
+  ["Be yourself; everyone else is already taken.","Oscar Wilde"],
+  ["The unexamined life is not worth living.","Socrates"],
+  ["I think, therefore I am.","René Descartes"],
+  ["Float like a butterfly, sting like a bee.","Muhammad Ali"],
+  ["The only thing we have to fear is fear itself.","Franklin D. Roosevelt"],
+  ["Imagination is more important than knowledge.","Albert Einstein"],
+  ["Whatever you are, be a good one.","Abraham Lincoln"],
+  ["Success is not final, failure is not fatal.","Winston Churchill"],
+  ["The best way to predict the future is to create it.","Peter Drucker"],
+  ["Stay hungry, stay foolish.","Steve Jobs"],
+  ["Simplicity is the ultimate sophistication.","Leonardo da Vinci"],
+  ["Not all those who wander are lost.","J.R.R. Tolkien"],
+  ["Do one thing every day that scares you.","Eleanor Roosevelt"],
+  ["It always seems impossible until it's done.","Nelson Mandela"],
+  ["Life is what happens when you're busy making other plans.","John Lennon"],
+];
+let qi=0;
+function showQuote(){
+  const box=document.getElementById("quoteBox");
+  box.style.opacity=0;
+  setTimeout(()=>{
+    document.getElementById("qtext").textContent=`"${quotes[qi][0]}"`;
+    document.getElementById("qauth").textContent="— "+quotes[qi][1];
+    box.style.transition="opacity .6s";
+    box.style.opacity=1;
+    qi=(qi+1)%quotes.length;
+  },300);
+}
+showQuote();
+setInterval(showQuote,9000);
+
+/* ================= timer widget ================= */
+let timerInterval=null, timerRemaining=300;
+function fmt(s){const m=Math.floor(s/60);const r=s%60;return String(m).padStart(2,"0")+":"+String(r).padStart(2,"0");}
+function syncFromInputs(){
+  const m=parseInt(document.getElementById("tmin").value)||0;
+  const s=parseInt(document.getElementById("tsec").value)||0;
+  timerRemaining=m*60+s;
+  document.getElementById("tdisplay").textContent=fmt(timerRemaining);
+}
+document.getElementById("tmin").addEventListener("input",syncFromInputs);
+document.getElementById("tsec").addEventListener("input",syncFromInputs);
+syncFromInputs();
+function beep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);o.frequency.value=880;
+    g.gain.setValueAtTime(.2,ctx.currentTime);
+    o.start();o.stop(ctx.currentTime+.4);
+  }catch(e){}
+}
+function timerStart(){
+  if(timerInterval) return;
+  if(timerRemaining<=0) syncFromInputs();
+  timerInterval=setInterval(()=>{
+    timerRemaining--;
+    document.getElementById("tdisplay").textContent=fmt(Math.max(timerRemaining,0));
+    if(timerRemaining<=0){
+      clearInterval(timerInterval);timerInterval=null;beep();
+      document.getElementById("tdisplay").textContent="Time's up!";
+    }
+  },1000);
+}
+function timerPause(){ clearInterval(timerInterval); timerInterval=null; }
+function timerReset(){ clearInterval(timerInterval); timerInterval=null; syncFromInputs(); }
+
+/* ================= snake game ================= */
+let snakeLoop=null, snakeKeyHandler=null;
+function startSnake(){
+  const canvas=document.getElementById("snakeCanvas");
+  const ctx=canvas.getContext("2d");
+  const size=15, cols=20;
+  let snake=[{x:8,y:10}], dir={x:1,y:0}, nextDir={x:1,y:0}, food=spawnFood(), score=0, dead=false;
+  function spawnFood(){ return {x:Math.floor(Math.random()*cols),y:Math.floor(Math.random()*cols)}; }
+  function key(e){
+    const k=e.key.toLowerCase();
+    if((k==="arrowup"||k==="w")&&dir.y!==1) nextDir={x:0,y:-1};
+    else if((k==="arrowdown"||k==="s")&&dir.y!==-1) nextDir={x:0,y:1};
+    else if((k==="arrowleft"||k==="a")&&dir.x!==1) nextDir={x:-1,y:0};
+    else if((k==="arrowright"||k==="d")&&dir.x!==-1) nextDir={x:1,y:0};
+  }
+  if(snakeKeyHandler) window.removeEventListener("keydown", snakeKeyHandler);
+  snakeKeyHandler=key;
+  window.addEventListener("keydown", key);
+  if(snakeLoop) clearInterval(snakeLoop);
+  document.getElementById("snakeScore").textContent="0";
+  snakeLoop=setInterval(()=>{
+    if(dead) return;
+    dir=nextDir;
+    const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+    if(head.x<0||head.y<0||head.x>=cols||head.y>=cols||snake.some(s=>s.x===head.x&&s.y===head.y)){
+      dead=true; ctx.fillStyle="#ff2ec4"; ctx.font="16px Arial"; ctx.fillText("Game Over",100,150); return;
+    }
+    snake.unshift(head);
+    if(head.x===food.x&&head.y===food.y){ score++; document.getElementById("snakeScore").textContent=score; food=spawnFood(); }
+    else snake.pop();
+    ctx.fillStyle="#05040d"; ctx.fillRect(0,0,300,300);
+    ctx.fillStyle="#ff2ec4"; ctx.fillRect(food.x*size,food.y*size,size-1,size-1);
+    ctx.fillStyle="#00e5ff";
+    snake.forEach(s=>ctx.fillRect(s.x*size,s.y*size,size-1,size-1));
+  },120);
+}
+function closeSnake(){
+  document.getElementById("snakeModal").classList.remove("open");
+  if(snakeLoop) clearInterval(snakeLoop);
+}
+
+/* ================= live weather (real, no API key needed) ================= */
+const wmoText={0:["Clear sky","☀️"],1:["Mainly clear","🌤️"],2:["Partly cloudy","⛅"],3:["Overcast","☁️"],
+45:["Fog","🌫️"],48:["Fog","🌫️"],51:["Light drizzle","🌦️"],53:["Drizzle","🌦️"],55:["Dense drizzle","🌦️"],
+61:["Light rain","🌧️"],63:["Rain","🌧️"],65:["Heavy rain","🌧️"],71:["Light snow","🌨️"],73:["Snow","🌨️"],
+75:["Heavy snow","❄️"],80:["Rain showers","🌧️"],81:["Rain showers","🌧️"],82:["Violent showers","⛈️"],
+95:["Thunderstorm","⛈️"],96:["Thunderstorm, hail","⛈️"],99:["Thunderstorm, hail","⛈️"]};
+async function loadWeather(cityQuery){
+  const tempEl=document.getElementById("wtemp");
+  const locEl=document.getElementById("wloc");
+  const iconEl=document.getElementById("wicon");
+  const savedCity=localStorage.getItem("weatherCity") || "Omaha, NE";
+  const city=cityQuery || savedCity;
+  tempEl.textContent="Loading…";
+  locEl.textContent=city;
+  try{
+    // Uses Open-Meteo's public geocoding + weather APIs, so this also works
+    // when this HTML is opened directly as a downloaded file (file://).
+    const geoRes=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`,{cache:"no-store"});
+    if(!geoRes.ok) throw new Error("Location lookup failed");
+    const geo=await geoRes.json();
+    const place=geo.results?.[0];
+    if(!place) throw new Error("City not found");
+    const wxRes=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`,{cache:"no-store"});
+    if(!wxRes.ok) throw new Error("Weather lookup failed");
+    const wx=await wxRes.json();
+    const code=wx.current?.weather_code;
+    const [condition,icon]=wmoText[code]||["Weather","🌡️"];
+    iconEl.textContent=icon;
+    tempEl.textContent=Math.round(wx.current.temperature_2m)+"°F";
+    const region=place.admin1?`, ${place.admin1}`:"";
+    locEl.textContent=`${condition} · ${place.name}${region}`;
+    localStorage.setItem("weatherCity",city);
+  }catch(e){
+    iconEl.textContent="⚠️";
+    tempEl.textContent="Unavailable";
+    locEl.textContent="Click to choose a city";
+  }
+}
+document.getElementById("weatherBox").addEventListener("click",()=>{
+  const current=localStorage.getItem("weatherCity") || "Omaha, NE";
+  const city=prompt("Enter a city for weather (example: Omaha, NE):",current);
+  if(city && city.trim()) loadWeather(city.trim());
+});
+loadWeather();
+
+/* ================= search ================= */
+function enc(q){return encodeURIComponent(q);}
+function fallbackData(q){
+  const e=enc(q);
+  return {all:[
+    {title:"Google",url:`https://www.google.com/search?q=${e}`,desc:"Search the web with Google."},
+    {title:"Bing",url:`https://www.bing.com/search?q=${e}`,desc:"Web results from Microsoft Bing."},
+    {title:"Wikipedia",url:`https://en.wikipedia.org/wiki/Special:Search?search=${e}`,desc:"Encyclopedia articles and background information."},
+    {title:"Reddit",url:`https://www.reddit.com/search/?q=${e}`,desc:"Community discussions and posts."},
+    {title:"YouTube",url:`https://www.youtube.com/results?search_query=${e}`,desc:"Videos related to your search."},
+    {title:"GitHub",url:`https://github.com/search?q=${e}`,desc:"Code and developer projects."},
+    {title:"Stack Overflow",url:`https://stackoverflow.com/search?q=${e}`,desc:"Programming questions and answers."},
+    {title:"Google Scholar",url:`https://scholar.google.com/scholar?q=${e}`,desc:"Academic papers and research."}],
+    videos:[{title:"YouTube",url:`https://www.youtube.com/results?search_query=${e}`,desc:"Search YouTube directly."},{title:"Vimeo",url:`https://vimeo.com/search?q=${e}`,desc:"Search Vimeo directly."},{title:"Dailymotion",url:`https://www.dailymotion.com/search/${e}`,desc:"Search Dailymotion directly."},{title:"Twitch",url:`https://www.twitch.tv/search?term=${e}`,desc:"Search Twitch directly."}],
+    shopping:[{title:"Amazon",url:`https://www.amazon.com/s?k=${e}`,desc:"Search Amazon products."},{title:"eBay",url:`https://www.ebay.com/sch/i.html?_nkw=${e}`,desc:"Search eBay listings."},{title:"Walmart",url:`https://www.walmart.com/search?q=${e}`,desc:"Search Walmart products."},{title:"Etsy",url:`https://www.etsy.com/search?q=${e}`,desc:"Search Etsy listings."},{title:"Best Buy",url:`https://www.bestbuy.com/site/searchpage.jsp?st=${e}`,desc:"Search Best Buy products."}],
+    news:[{title:"Google News",url:`https://news.google.com/search?q=${e}`,desc:"Search current news stories."},{title:"Reuters",url:`https://www.reuters.com/site-search/?query=${e}`,desc:"Search Reuters reporting."},{title:"AP News",url:`https://apnews.com/search?q=${e}`,desc:"Search Associated Press coverage."},{title:"BBC News",url:`https://www.bbc.co.uk/search?q=${e}`,desc:"Search BBC News."},{title:"NPR",url:`https://www.npr.org/search/?query=${e}`,desc:"Search NPR stories."}]};
+}
+function renderList(containerId, items, emptyMsg){
+  const el=document.getElementById(containerId);
+  if(!items || !items.length){ el.innerHTML=`<div class="loading">${emptyMsg}</div>`; return; }
+  el.innerHTML = items.map(it=>`
+    <div class="result">
+      <a href="${it.url}" target="_blank" rel="noopener">${it.title}</a>
+      <div class="src">${it.url}</div>
+      <p>${it.desc||""}</p>
+    </div>`).join("");
+}
+async function renderImages(q){
+  const el = document.getElementById("imgResults");
+  const key = loadSettings().unsplash;
+  if(!key){
+    el.innerHTML = `<div class="loading">Add a free Unsplash API key in Settings (⚙️) to see real photos here.</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="loading">Loading photos…</div>`;
+  try{
+    const res = await fetch(`https://api.unsplash.com/search/photos?query=${enc(q)}&per_page=9&client_id=${key}`);
+    const data = await res.json();
+    if(!data.results || !data.results.length){ el.innerHTML=`<div class="loading">No photos found.</div>`; return; }
+    el.innerHTML = data.results.map(p=>`
+      <div class="imgCard">
+        <a href="${p.links.html}" target="_blank" rel="noopener">
+          <img src="${p.urls.small}" alt="${(p.alt_description||q).replace(/"/g,'')}" loading="lazy">
+          <div class="cap">by ${p.user.name}</div>
+        </a>
+      </div>`).join("");
+  }catch(e){
+    el.innerHTML = `<div class="loading">Couldn't load photos right now.</div>`;
+  }
+}
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById(t.dataset.t).classList.add("active");
+  };
+});
+async function runAI(q){
+  const box=document.getElementById("aiText");
+  box.textContent="AI Overview is disabled in the standalone HTML because API keys cannot be securely hidden inside a downloaded file.";
+}
+function doSearch(){
+  const q=document.getElementById("q").value.trim();
+  if(!q) return;
+  const data = fallbackData(q);
+  renderList("allResults", data.all, "No sites found.");
+  renderList("vidResults", data.videos, "No video sites found.");
+  renderList("shopResults", data.shopping, "This doesn't look like a shopping query.");
+  renderList("newsResults", data.news, "No news sites found.");
+  renderImages(q);
+  runAI(q);
+}
+document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter") doSearch(); });
+</script>
+</body>
+</html>
